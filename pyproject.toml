@@ -1,0 +1,79 @@
+[project]
+    name          = "monsoon"
+    version       = "0.1.89"
+    description   = "Monsoon Power Monitor API"
+    authors       = [{ name = "Michael Brinker" }, { name = "Jared Hicks" }]
+    license       = "MIT"
+    license-files = ["LICENSE.txt"]
+    classifiers   = ["Development Status :: 3 - Alpha", "Intended Audience :: Developers", "Intended Audience :: Science/Research", "Programming Language :: Python :: 3"]
+    keywords      = ["Power measurement"]
+
+    # 3.10 for the match-free but modern syntax the housekeeping pass leaves behind
+    # (X | Y unions, dict merge). The upstream package claimed Python 2 support; it
+    # has not run on Python 2 for years.
+    requires-python = ">=3.10"
+
+    # scipy was declared upstream but the only trace of it in the source was two
+    # unused imports at the top of sampleEngine.py. Dropping it removes a large
+    # compiled dependency that was never called.
+    dependencies = ["numpy>=2", "pyusb", "libusb1"]
+
+    [project.readme]
+        file         = "README.md"
+        content-type = "text/markdown"
+
+    [project.urls]
+        Homepage = "https://github.com/msoon/PyMonsoon"
+
+    [project.optional-dependencies]
+        dev = ["ruff", "ty", "pytest"]
+
+[tool.setuptools]
+    include-package-data = false
+
+    [tool.setuptools.packages.find]
+        include    = ["Monsoon*"]
+        namespaces = false
+
+    [tool.setuptools.package-data]
+        # The C++ backend is an alternative to the pyusb protocol, selected at run time.
+        # Unused by nordPA's measure.py, kept so an editable install matches upstream.
+        Monsoon = ["Compiled/*/*"]
+
+[tool.ruff]
+    line-length = 88
+
+    [tool.ruff.lint]
+        # Matches the rest of the repo, ANN included, so there is one dialect rather
+        # than several. What differs is where it is enforced -- see below.
+        select = ["E", "F", "W", "I", "UP", "B", "SIM", "ANN"]
+        ignore = ["E501"]
+
+        [tool.ruff.lint.per-file-ignores]
+            # The vendored package is exempt from ANN, on the same reasoning the root
+            # ruff.toml applies to scripts/lib/: this is third-party code maintained
+            # against upstream, and annotating 2,000 lines of it would be a rewrite --
+            # one that would have to guess types for hardware paths no test can reach.
+            # The defect-finding rules still apply here and were fixed, which is where
+            # the value was: a NumPy 2 repr, a double decimation, `is` against an int,
+            # np.int, a protocol object shared between devices.
+            #
+            # Anything nordPA writes is annotated. tests/ is deliberately absent from
+            # this list.
+            "Monsoon/*.py"    = ["ANN"]
+            "UnitTests/*.py"  = ["ANN", "B008"]
+            "examples/**/*.py" = ["ANN", "B008"]
+
+            # B008 elsewhere was a real defect -- one protocol object, and therefore
+            # one device handle, shared by every unit that did not pass its own. Fixed
+            # in Monsoon/. Left in the demos and the hardware tests, which construct a
+            # protocol per call site anyway and are not part of the library.
+
+            # The CSV handle is deliberately long-lived: enableCSVOutput opens it and
+            # disableCSVOutput closes it, spanning a capture that can run for hours.
+            # A context manager would have to wrap the whole sampling loop.
+            "Monsoon/sampleEngine.py" = ["ANN", "SIM115"]
+
+[build-system]
+    requires      = ["setuptools>=61.2"]
+    build-backend = "setuptools.build_meta"

@@ -12,3 +12,9 @@
 *.suo
 /Monsoon/.vs
 /examples/.vs
+# nordPA: the venv this package is installed into, per tools/power-monitor/Makefile
+/.venv
+/*.egg-info
+__pycache__/
+.pytest_cache/
+.ruff_cache/

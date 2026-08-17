@@ -1,0 +1,66 @@
+nodpa branch
+============
+
+Forked from msoon/PyMonsoon at 1afab10 to make the package run on a current Python,
+for nordPA's tools/power-monitor. Upstream is unmaintained; this branch is the
+minimum that makes an LVPM usable, plus the housekeeping that came with it.
+
+Defects fixed. Each of these was live -- the package did not merely warn.
+
+  * sampleEngine wrote CSV values with repr(). Current and voltage samples are numpy
+    scalars, and NumPy 2 changed their repr, so every row came out as
+    "np.float64(1.234)," and no capture could be parsed.
+
+  * sampleEngine.__outputToCSV divided by `granularity` a second time, after
+    __getMeasurement had already applied it, discarding most of what survived the
+    first decimation. At granularity=10 roughly 1% of samples reached the file.
+
+  * LVPM.setRunTimeCurrentLimit and LVPM.setPowerUpCurrentLimit called
+    self.__raw_from_amps(), which Python name-mangles to a method that does not
+    exist. Both raised AttributeError, so an LVPM ran with whatever limits its EEPROM
+    held and a caller that believed it had protected its device under test had not.
+    HVPM.py spells the same two methods correctly.
+
+  * reflash.__byteLine round-tripped a value through struct.pack/struct.unpack in a
+    way that only worked on Python 2, and used np.int, removed in NumPy 1.24.
+    reflash.getHeaderFromFWM read a binary header in text mode and fed str slices to
+    array.array. Neither function could run.
+
+  * Monsoon/Main.py executed its hardware tests at import time -- forking four
+    processes and looking for four specific serial numbers -- so importing it, or any
+    tool that walked the package, started talking to devices. It also used Python 2
+    implicit relative imports.
+
+  * setup_usb took Protocol=pmapi.USB_protocol() as a default, evaluated once when
+    the class body ran, so every unit that did not pass one shared a single protocol
+    object and therefore a single device handle.
+
+  * `is` / `is not` against 0xFFFFFFFF for the infinite-sample sentinel. Identity
+    held only while the caller passed that exact object through.
+
+  * pmapi's `platform.system() is "Windows"` -- a SyntaxWarning and a branch that
+    never ran.
+
+  * Bare excepts around USB calls swallowed KeyboardInterrupt, defeating the Ctrl-C
+    handling sampleEngine.startSampling relies on. Narrowed to Exception.
+
+  * startSampling re-raised failures as bare Exception(e.args), discarding the type.
+
+Additions.
+
+  * SampleEngine.errorState and SampleEngine.droppedCount expose per-capture health.
+    A dropped sample invalidates any attempt to derive time from sample index, and
+    self.dropped alone cannot answer the question -- it is overwritten by every
+    packet. Both are cleared per capture rather than per object.
+
+Other changes.
+
+  * pyproject.toml replaces setup.py; requires-python >= 3.10.
+  * scipy dropped. Its only trace was two unused imports in sampleEngine.
+  * The timestamp column is labelled Time(s). It has always held seconds, and it is
+    host packet-arrival time rather than a sample clock -- see the note on
+    sampleEngine.channels.
+  * CSV output goes through the csv module, so rows no longer carry a trailing comma
+    that made every reader see an extra empty field.
+  * tests/ covers the arithmetic without hardware. UnitTests/ still needs a device.
+  * ruff and ty clean; formatted with ruff format.

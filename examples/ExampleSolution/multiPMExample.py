@@ -1,47 +1,49 @@
-import Monsoon.HVPM as HVPM
-import Monsoon.sampleEngine as sampleEngine
-import Monsoon.Operations as op
-import Monsoon.pmapi as pmapi
 from multiprocessing import Process
 
+import Monsoon.HVPM as HVPM
+import Monsoon.pmapi as pmapi
+import Monsoon.sampleEngine as sampleEngine
 
-def testHVPM(serialno=None,Protocol=pmapi.USB_protocol()):
+
+def testHVPM(serialno=None, Protocol=pmapi.USB_protocol()):
     HVMON = HVPM.Monsoon()
-    HVMON.setup_usb(serialno,Protocol)
+    HVMON.setup_usb(serialno, Protocol)
     print("HVPM Serial Number: " + repr(HVMON.getSerialNumber()))
     HVMON.fillStatusPacket()
     HVMON.setVout(3)
     HVengine = sampleEngine.SampleEngine(HVMON)
-    #Output to CSV
+    # Output to CSV
     HVengine.enableCSVOutput("HV Main Example " + str(serialno) + ".csv")
-    #Turning off periodic console outputs.
+    # Turning off periodic console outputs.
     HVengine.ConsoleOutput(True)
 
-    #Setting all channels enabled
+    # Setting all channels enabled
     HVengine.enableChannel(sampleEngine.channels.MainCurrent)
     HVengine.enableChannel(sampleEngine.channels.MainVoltage)
-    #HVengine.enableChannel(sampleEngine.channels.USBCurrent)
-    #HVengine.enableChannel(sampleEngine.channels.USBVoltage)
-    #HVengine.enableChannel(sampleEngine.channels.AuxCurrent)
+    # HVengine.enableChannel(sampleEngine.channels.USBCurrent)
+    # HVengine.enableChannel(sampleEngine.channels.USBVoltage)
+    # HVengine.enableChannel(sampleEngine.channels.AuxCurrent)
     HVengine.enableChannel(sampleEngine.channels.timeStamp)
-    
-    #Setting trigger conditions
-    numSamples=sampleEngine.triggers.SAMPLECOUNT_INFINITE 
-    HVengine.setStartTrigger(sampleEngine.triggers.GREATER_THAN,0) 
-    HVengine.setStopTrigger(sampleEngine.triggers.GREATER_THAN,600)
-    HVengine.setTriggerChannel(sampleEngine.channels.timeStamp) 
 
-    #Actually start collecting samples
+    # Setting trigger conditions
+    numSamples = sampleEngine.triggers.SAMPLECOUNT_INFINITE
+    HVengine.setStartTrigger(sampleEngine.triggers.GREATER_THAN, 0)
+    HVengine.setStopTrigger(sampleEngine.triggers.GREATER_THAN, 600)
+    HVengine.setTriggerChannel(sampleEngine.channels.timeStamp)
+
+    # Actually start collecting samples
     HVengine.startSampling(numSamples)
-    #startSampling() continues until the trigger conditions have been met, and then ends automatically.
+    # startSampling() continues until the trigger conditions have been met, and then ends automatically.
 
-    HVMON.closeDevice();
+    HVMON.closeDevice()
+
 
 def main():
     serialnos = [20125, 20124, 20480, 21000]
     for serial in serialnos:
-        p = Process(target=testHVPM,args=(serial,pmapi.USB_protocol()))
+        p = Process(target=testHVPM, args=(serial, pmapi.USB_protocol()))
         p.start()
+
 
 if __name__ == "__main__":
     main()
